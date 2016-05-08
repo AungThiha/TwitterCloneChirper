@@ -1,0 +1,7 @@
+{
+  "name": "chirper-ex1",
+  "version": "1.0.0",
+  "dependencies": {
+    "bootstrap": "^3.3.6"
+  }
+}
