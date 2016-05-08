@@ -1,0 +1,2 @@
+.appear-enter{transition-duration:.7s;transition-property:opacity;transition-timing-function:ease-out;opacity:0}.appear-enter.appear-enter-active{opacity:1}.appear-leave{opacity:0}.chirp-list{padding:0}.chirp{margin:20px 0;list-style-type:none;padding:6px;border:1px solid #d1d1d1;border-radius:4px}.chirp p{margin-bottom:0}.timestamp{color:#D1D1D1}.chirp img{display:none}@media (min-width:550px){.chirp img{display:block;border-radius:4px;width:100%}}
+/*# sourceMappingURL=index.css.map */

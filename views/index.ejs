@@ -4,14 +4,18 @@
     <meta charset="UTF-8">
     <title>Chirper</title>
     <link rel="stylesheet" href="/lib/bootstrap/dist/css/bootstrap.min.css">
-    <script src="/lib/jquery/dist/jquery.min.js"></script>
-    <script src="/lib/bootstrap/dist/js/bootstrap.min.js"></script>
+    <link rel="stylesheet" href="/css/index.css">
 </head>
-<body>
+<body class="aws-background">
 
-<div class="jumbotron">
-hey
+<div id="app">
+
 </div>
+
+<script>var USER = <%- JSON.stringify(user) %>;</script>
+<script src="/lib/jquery/dist/jquery.min.js"></script>
+<script src="/lib/bootstrap/dist/js/bootstrap.min.js"></script>
+<script src="/js/index.js"></script>
 
 </body>
 </html>
