@@ -50349,7 +50349,7 @@ Object.keys(constants).forEach(function (key) {
   };
 });
 
-},{"./constants":377,"./dispatcher":381}],371:[function(require,module,exports){
+},{"./constants":383,"./dispatcher":389}],371:[function(require,module,exports){
 var actions = require('./actions');
 var dispatcher = require('./dispatcher');
 var constants = require('./constants');
@@ -50357,6 +50357,15 @@ var constants = require('./constants');
 var API = {
   fetchChirps: function () {
     get('/api/chirps').then(actions.gotChirps.bind(actions));
+  },
+  fetchUsers: function () {
+    get('/api/users').then(actions.gotUsers.bind(actions));
+  },
+  follow: function (id) {
+    post('/api/follow/' + id).then(actions.followed.bind(actions));
+  },
+  unfollow: function (id) {
+    post('api/unfollow/' + id).then(actions.unfollowed.bind(actions));
   },
   saveChirp: function (text) {
     text = text.trim();
@@ -50391,7 +50400,18 @@ dispatcher.register(function (action) {
   switch (action.actionType) {
     case constants.CHIRP:
       {
+        console.log(action.data);
         API.saveChirp(action.data);
+        break;
+      }
+    case constants.FOLLOW:
+      {
+        API.follow(action.data);
+        break;
+      }
+    case constants.UNFOLLOW:
+      {
+        API.unfollow(action.data);
         break;
       }
   }
@@ -50399,7 +50419,64 @@ dispatcher.register(function (action) {
 
 module.exports = API;
 
-},{"./actions":370,"./constants":377,"./dispatcher":381}],372:[function(require,module,exports){
+},{"./actions":370,"./constants":383,"./dispatcher":389}],372:[function(require,module,exports){
+var React = require('react');
+var PropTypes = React.PropTypes;
+var utils = require('../utils');
+var Link = require('react-router').Link;
+
+function Box(props) {
+  var id = typeof props.item.userId === 'number' ? props.item.userId : props.item.cid;
+  return React.createElement(
+    'li',
+    { className: 'row chirp' },
+    React.createElement(
+      'div',
+      { className: 'col-md-2', style: { padding: 0 } },
+      React.createElement(
+        Link,
+        { to: '/user/' + id },
+        React.createElement('img', { src: utils.avatar(props.item.email), alt: '' })
+      )
+    ),
+    React.createElement(
+      'div',
+      { className: 'col-md-10' },
+      React.createElement(
+        'p',
+        null,
+        React.createElement(
+          'strong',
+          null,
+          props.item.fullname,
+          ' '
+        ),
+        React.createElement(
+          'span',
+          null,
+          ' @',
+          props.item.username,
+          ' ',
+          props.timestamp && props.timestamp
+        )
+      ),
+      React.createElement(
+        'p',
+        null,
+        props.children
+      )
+    )
+  );
+}
+
+Box.propTypes = {
+  item: PropTypes.object.isRequired,
+  timestamp: PropTypes.string
+};
+
+module.exports = Box;
+
+},{"../utils":394,"react":344,"react-router":194}],373:[function(require,module,exports){
 var React = require('react');
 var PropTypes = React.PropTypes;
 
@@ -50439,60 +50516,19 @@ ChirpInput.propTypes = {
 
 module.exports = ChirpInput;
 
-},{"react":344}],373:[function(require,module,exports){
+},{"react":344}],374:[function(require,module,exports){
 var React = require('react');
-var ReactRouter = require('react-router');
-var Link = ReactRouter.Link;
-var utils = require('../utils');
+var Box = require('./Box');
 var PropTypes = React.PropTypes;
 var moment = require('moment');
 
-function ChirpBox(props) {
-  return React.createElement(
-    'li',
-    { className: 'row chirp' },
-    React.createElement(
-      'div',
-      { className: 'col-md-2', style: { padding: 0 } },
-      React.createElement(
-        Link,
-        { to: '/user', params: { id: props.c.cid } },
-        React.createElement('img', { src: utils.avatar(props.c.email), alt: '' })
-      )
-    ),
-    React.createElement(
-      'div',
-      { className: 'col-md-10' },
-      React.createElement(
-        'p',
-        null,
-        React.createElement(
-          'strong',
-          null,
-          props.c.fullname,
-          ' '
-        ),
-        React.createElement(
-          'span',
-          null,
-          ' @',
-          props.c.username,
-          ' ',
-          moment(props.c.$created).fromNow()
-        )
-      ),
-      React.createElement(
-        'p',
-        null,
-        props.c.text
-      )
-    )
-  );
-}
-
 function ChirpList(props) {
   var items = props.chirps.map(function (c) {
-    return React.createElement(ChirpBox, { c: c, key: c.cid });
+    return React.createElement(
+      Box,
+      { item: c, timestamp: moment(c.$created).fromNow(), key: c.cid },
+      c.text
+    );
   });
   return React.createElement(
     'div',
@@ -50511,7 +50547,60 @@ ChirpList.propTypes = {
 
 module.exports = ChirpList;
 
-},{"../utils":385,"moment":146,"react":344,"react-router":194}],374:[function(require,module,exports){
+},{"./Box":372,"moment":146,"react":344}],375:[function(require,module,exports){
+var React = require('react');
+var PropTypes = React.PropTypes;
+var userStore = require('../stores/users');
+var actions = require('../actions');
+
+var FollowButton = React.createClass({
+  displayName: 'FollowButton',
+
+  propTypes: {
+    userId: PropTypes.number.isRequired
+  },
+  getInitialState: function () {
+    return {
+      following: userStore.currentUser.following
+    };
+  },
+  onChange: function () {
+    this.setState(this.getInitialState);
+  },
+  mixins: [userStore.mixin],
+  render: function () {
+
+    if (userStore.currentUser.cid === this.props.userId) return React.createElement(
+      'span',
+      null,
+      'This is you.'
+    );
+
+    var text, fn;
+
+    if (this.state.following.indexOf(this.props.userId) > -1) {
+      text = 'unfollow';
+      fn = function () {
+        actions.unfollow(this.props.userId);
+      }.bind(this);
+    } else {
+      text = 'follow';
+      fn = function () {
+        actions.follow(this.props.userId);
+      }.bind(this);
+    }
+
+    return React.createElement(
+      'button',
+      { className: 'btn btn-primary', onClick: fn },
+      text
+    );
+  }
+});
+
+module.exports = FollowButton;
+
+},{"../actions":370,"../stores/users":393,"react":344}],376:[function(require,module,exports){
 var React = require('react');
 var ChirpInputContainer = require('../containers/ChirpInputContainer');
 var ChirpListContainer = require('../containers/ChirpListContainer');
@@ -50527,9 +50616,82 @@ var Home = function (props) {
 
 module.exports = Home;
 
-},{"../containers/ChirpInputContainer":378,"../containers/ChirpListContainer":379,"react":344}],375:[function(require,module,exports){
+},{"../containers/ChirpInputContainer":384,"../containers/ChirpListContainer":385,"react":344}],377:[function(require,module,exports){
+var React = require('react');
+var PropTypes = React.PropTypes;
+
+var styles = {
+  container: {
+    position: 'fixed',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    fontSize: '55px'
+  },
+  content: {
+    textAlign: 'center',
+    position: 'absolute',
+    width: '100%',
+    marginTop: '30px'
+  }
+};
+
+var Loading = React.createClass({
+  displayName: 'Loading',
+
+  propTypes: {
+    text: PropTypes.string,
+    speed: PropTypes.number
+  },
+  getDefaultProps: function () {
+    return {
+      text: 'Loading',
+      speed: 200
+    };
+  },
+  getInitialState: function () {
+    this.originalText = this.props.text;
+    return {
+      text: this.originalText
+    };
+  },
+  componentDidMount: function () {
+    var stopper = this.originalText + '...';
+    this.interval = setInterval(function () {
+      if (this.state.text === stopper) {
+        this.setState({
+          text: this.originalText
+        });
+      } else {
+        this.setState({
+          text: this.state.text + "."
+        });
+      }
+    }.bind(this), this.props.speed);
+  },
+  componentWillUnmount: function () {
+    clearInterval(this.interval);
+  },
+  render: function () {
+    return React.createElement(
+      'div',
+      { style: styles.container },
+      React.createElement(
+        'p',
+        { style: styles.content },
+        this.state.text
+      )
+    );
+  }
+});
+
+module.exports = Loading;
+
+},{"react":344}],378:[function(require,module,exports){
 var React = require('react');
 var ReactCSSTransitionGroup = require('react-addons-css-transition-group');
+var Navigation = require('./Navigation');
 
 var Main = React.createClass({
   displayName: 'Main',
@@ -50553,7 +50715,7 @@ var Main = React.createClass({
         React.createElement(
           'div',
           { className: 'col-md-3 col-md-offset-1' },
-          'Navigation'
+          React.createElement(Navigation, null)
         ),
         React.createElement(
           'div',
@@ -50574,7 +50736,142 @@ var Main = React.createClass({
 
 module.exports = Main;
 
-},{"react":344,"react-addons-css-transition-group":163}],376:[function(require,module,exports){
+},{"./Navigation":379,"react":344,"react-addons-css-transition-group":163}],379:[function(require,module,exports){
+var React = require('react');
+var Link = require('react-router').Link;
+var userStore = require('../stores/users');
+
+function Navigation(props) {
+  return React.createElement(
+    'ul',
+    null,
+    React.createElement(
+      'li',
+      null,
+      React.createElement(
+        Link,
+        { to: '/' },
+        'Timeline'
+      )
+    ),
+    React.createElement(
+      'li',
+      null,
+      React.createElement(
+        Link,
+        { to: '/users' },
+        'Users'
+      )
+    ),
+    React.createElement(
+      'li',
+      null,
+      React.createElement(
+        'a',
+        { href: '/logout' },
+        'Logout '
+      ),
+      '(',
+      userStore.currentUser.username,
+      ')'
+    )
+  );
+}
+
+module.exports = Navigation;
+
+},{"../stores/users":393,"react":344,"react-router":194}],380:[function(require,module,exports){
+var React = require('react');
+var Box = require('./Box');
+var FollowButton = require('./FollowButton');
+var PropTypes = React.PropTypes;
+
+function UserList(props) {
+  var items = props.users.map(function (u) {
+    return React.createElement(
+      Box,
+      { key: u.cid, item: u },
+      React.createElement(FollowButton, { userId: u.cid })
+    );
+  });
+  return React.createElement(
+    'div',
+    { className: 'row' },
+    React.createElement(
+      'ul',
+      { className: 'chirp-list' },
+      items
+    )
+  );
+}
+
+UserList.propTypes = {
+  users: PropTypes.array.isRequired
+};
+
+module.exports = UserList;
+
+},{"./Box":372,"./FollowButton":375,"react":344}],381:[function(require,module,exports){
+var React = require('react');
+var PropTypes = React.PropTypes;
+var utils = require('../utils');
+var FollowButton = require('./FollowButton');
+var Loading = require('./Loading');
+
+function UserProfile(props) {
+  if (!props.user) {
+    return React.createElement(Loading, null);
+  }
+  var items = props.chirps.map(function (chirp) {
+    return React.createElement(
+      'li',
+      { key: chirp.cid },
+      chirp.text
+    );
+  });
+  return React.createElement(
+    'div',
+    null,
+    React.createElement(
+      'div',
+      { className: 'col-md-2' },
+      React.createElement('img', { src: utils.avatar(props.user.email), alt: '' })
+    ),
+    React.createElement(
+      'div',
+      { className: 'col-md-10' },
+      React.createElement(
+        'h1',
+        null,
+        props.user.fullname
+      ),
+      React.createElement(
+        'h3',
+        { className: 'timestamp' },
+        props.user.username
+      ),
+      React.createElement(
+        'p',
+        null,
+        React.createElement(FollowButton, { userId: props.user.cid })
+      )
+    ),
+    React.createElement(
+      'ul',
+      null,
+      items
+    )
+  );
+}
+
+UserProfile.propTypes = {
+  user: PropTypes.object,
+  chirps: PropTypes.array.isRequired
+};
+
+module.exports = UserProfile;
+
+},{"../utils":394,"./FollowButton":375,"./Loading":377,"react":344}],382:[function(require,module,exports){
 var React = require('react');
 var ReactRouter = require('react-router');
 var Router = ReactRouter.Router;
@@ -50583,6 +50880,8 @@ var IndexRoute = ReactRouter.IndexRoute;
 var browserHistory = ReactRouter.browserHistory;
 var Main = require('../components/Main');
 var HomeContainer = require('../containers/HomeContainer');
+var UserListContainer = require('../containers/UserListContainer');
+var UserProfileContainer = require('../containers/UserProfileContainer');
 
 var routes = React.createElement(
   Router,
@@ -50591,13 +50890,14 @@ var routes = React.createElement(
     Route,
     { path: '/', component: Main },
     React.createElement(IndexRoute, { component: HomeContainer }),
-    React.createElement(Route, { path: '/user/:id', component: HomeContainer })
+    React.createElement(Route, { path: '/users', component: UserListContainer }),
+    React.createElement(Route, { path: '/user/:id', component: UserProfileContainer })
   )
 );
 
 module.exports = routes;
 
-},{"../components/Main":375,"../containers/HomeContainer":380,"react":344,"react-router":194}],377:[function(require,module,exports){
+},{"../components/Main":378,"../containers/HomeContainer":386,"../containers/UserListContainer":387,"../containers/UserProfileContainer":388,"react":344,"react-router":194}],383:[function(require,module,exports){
 module.exports = {
   CHIRP: 'CHIRP',
   CHIRPED: 'CHIRPED',
@@ -50613,9 +50913,8 @@ module.exports = {
   UNFOLLOWED: 'UNFOLLOWED'
 };
 
-},{}],378:[function(require,module,exports){
+},{}],384:[function(require,module,exports){
 var React = require('react');
-var PropTypes = React.PropTypes;
 var actions = require('../actions');
 var ChirpInput = require('../components/ChirpInput');
 
@@ -50645,30 +50944,26 @@ var ChirpInputContainer = React.createClass({
   }
 });
 
-ChirpInputContainer.propTypes = {};
-
 module.exports = ChirpInputContainer;
 
-},{"../actions":370,"../components/ChirpInput":372,"react":344}],379:[function(require,module,exports){
+},{"../actions":370,"../components/ChirpInput":373,"react":344}],385:[function(require,module,exports){
 var React = require('react');
 var chirpStore = require('../stores/chirps');
 var ChirpList = require('../components/ChirpList');
+var userStore = require('../stores/users');
 
 var ChirpListContainer = React.createClass({
   displayName: 'ChirpListContainer',
 
   getInitialState: function () {
     return {
-      chirps: chirpStore.all()
+      chirps: chirpStore.all().filter(function (chirp) {
+        return userStore.currentUser.following.indexOf(chirp.userId) > -1 || userStore.currentUser.cid === chirp.userId;
+      })
     };
   },
-  componentDidMount: function () {
-    chirpStore.addChangeListener(this.onChirpsChange);
-  },
-  componentWillUnmount: function () {
-    chirpStore.removeChangeListener(this.onChirpsChange);
-  },
-  onChirpsChange: function () {
+  mixins: [userStore.mixin, chirpStore.mixin],
+  onChange: function () {
     this.setState(this.getInitialState);
   },
   render: function () {
@@ -50678,7 +50973,7 @@ var ChirpListContainer = React.createClass({
 
 module.exports = ChirpListContainer;
 
-},{"../components/ChirpList":373,"../stores/chirps":383,"react":344}],380:[function(require,module,exports){
+},{"../components/ChirpList":374,"../stores/chirps":391,"../stores/users":393,"react":344}],386:[function(require,module,exports){
 var React = require('react');
 var Home = require('../components/Home');
 
@@ -50692,7 +50987,63 @@ var HomeContainer = React.createClass({
 
 module.exports = HomeContainer;
 
-},{"../components/Home":374,"react":344}],381:[function(require,module,exports){
+},{"../components/Home":376,"react":344}],387:[function(require,module,exports){
+var React = require('react');
+var userStore = require('../stores/users');
+var UserList = require('../components/UserList');
+
+var UserListContainer = React.createClass({
+  displayName: 'UserListContainer',
+
+  getInitialState: function () {
+    return {
+      users: userStore.all().filter(function (user) {
+        return user.cid !== userStore.currentUser.cid;
+      })
+    };
+  },
+  mixins: [userStore.mixin],
+  onChange: function () {
+    this.setState(this.getInitialState);
+  },
+  render: function () {
+    return React.createElement(UserList, { users: this.state.users });
+  }
+});
+
+module.exports = UserListContainer;
+
+},{"../components/UserList":380,"../stores/users":393,"react":344}],388:[function(require,module,exports){
+var React = require('react');
+var chirpStore = require('../stores/chirps');
+var userStore = require('../stores/users');
+var UserProfile = require('../components/UserProfile');
+
+var UserProfileContainer = React.createClass({
+  displayName: 'UserProfileContainer',
+
+  getInitialState: function () {
+    var id = parseInt(this.props.params.id);
+    return {
+      user: userStore.get(id),
+      chirps: chirpStore.all().filter(function (chirp) {
+        return chirp.userId == id;
+      })
+    };
+  },
+  mixins: [userStore.mixin, chirpStore.mixin],
+  onChange: function () {
+    this.setState(this.getInitialState);
+  },
+  render: function () {
+    return React.createElement(UserProfile, { user: this.state.user,
+      chirps: this.state.chirps });
+  }
+});
+
+module.exports = UserProfileContainer;
+
+},{"../components/UserProfile":381,"../stores/chirps":391,"../stores/users":393,"react":344}],389:[function(require,module,exports){
 var flux = require('flux');
 
 var dispatcher = new flux.Dispatcher();
@@ -50703,19 +51054,19 @@ dispatcher.register(function (action) {
 
 module.exports = dispatcher;
 
-},{"flux":109}],382:[function(require,module,exports){
+},{"flux":109}],390:[function(require,module,exports){
 
 var React = require('react');
 var ReactDOM = require('react-dom');
 var routes = require('./config/routes');
 
-var chirpStore = require('./stores/chirps');
 var API = require('./api');
 API.fetchChirps();
+API.fetchUsers();
 
 ReactDOM.render(routes, document.getElementById('app'));
 
-},{"./api":371,"./config/routes":376,"./stores/chirps":383,"react":344,"react-dom":164}],383:[function(require,module,exports){
+},{"./api":371,"./config/routes":382,"react":344,"react-dom":164}],391:[function(require,module,exports){
 var constants = require('../constants');
 
 var ChirpStore = require('./store').extend({
@@ -50727,7 +51078,7 @@ var ChirpStore = require('./store').extend({
 
 module.exports = ChirpStore;
 
-},{"../constants":377,"./store":384}],384:[function(require,module,exports){
+},{"../constants":383,"./store":392}],392:[function(require,module,exports){
 var assign = require('object-assign');
 var EventEmitterProto = require('events').EventEmitter.prototype;
 var CHANGE_EVENT = "CHANGE";
@@ -50741,9 +51092,16 @@ var storeMethods = {
     arr.filter(function (item) {
       return currIds.indexOf(item) === -1;
     }).forEach(this.add.bind(this));
+    this.sort();
   },
   add: function (item) {
     this._data.push(item);
+    this.sort();
+  },
+  sort: function () {
+    this._data.sort(function (a, b) {
+      return +new Date(b.$created) - +new Date(a.$created);
+    });
   },
   all: function () {
     return this._data;
@@ -50775,7 +51133,15 @@ exports.extend = function (methods) {
 
   var store = {
     _data: [],
-    actions: {}
+    actions: {},
+    mixin: {
+      componentDidMount: function () {
+        store.addChangeListener(this.onChange);
+      },
+      componentWillUnmount: function () {
+        store.removeChangeListener(this.onChange);
+      }
+    }
   };
 
   assign(store, EventEmitterProto, storeMethods, methods);
@@ -50794,7 +51160,24 @@ exports.extend = function (methods) {
   return store;
 };
 
-},{"../dispatcher":381,"events":80,"object-assign":147}],385:[function(require,module,exports){
+},{"../dispatcher":389,"events":80,"object-assign":147}],393:[function(require,module,exports){
+var constants = require('../constants');
+
+var UserStore = require('./store').extend({
+  init: function () {
+    this.bind(constants.GOT_USERS, this.set);
+    this.bind(constants.FOLLOWED, this.updateUser);
+    this.bind(constants.UNFOLLOWED, this.updateUser);
+  },
+  currentUser: USER,
+  updateUser: function (data) {
+    this.currentUser = data;
+  }
+});
+
+module.exports = UserStore;
+
+},{"../constants":383,"./store":392}],394:[function(require,module,exports){
 var crypto = require('crypto');
 
 exports.avatar = function (email) {
@@ -50803,7 +51186,7 @@ exports.avatar = function (email) {
   return 'http://www.gravatar.com/avatar/' + email + '?s=92';
 };
 
-},{"crypto":52}]},{},[382])
+},{"crypto":52}]},{},[390])
 
 
 //# sourceMappingURL=index.js.map

@@ -6,10 +6,19 @@ var API = {
   fetchChirps: function () {
     get('/api/chirps').then(actions.gotChirps.bind(actions));
   },
+  fetchUsers: function () {
+    get('/api/users').then(actions.gotUsers.bind(actions));
+  },
+  follow: function (id) {
+    post('/api/follow/' + id).then(actions.followed.bind(actions));
+  },
+  unfollow: function (id) {
+    post('api/unfollow/' + id).then(actions.unfollowed.bind(actions));
+  },
   saveChirp: function (text) {
     text = text.trim();
-    if(text === '') return;
-    post('/api/chirps', {text: text}).then(actions.chirped.bind(actions));
+    if (text === '') return;
+    post('/api/chirps', { text: text }).then(actions.chirped.bind(actions));
   }
 };
 
@@ -36,9 +45,21 @@ function post(url, body) {
 }
 
 dispatcher.register(function (action) {
-  switch (action.actionType){
-    case constants.CHIRP:{
+  switch (action.actionType) {
+    case constants.CHIRP:
+    {
+      console.log(action.data);
       API.saveChirp(action.data);
+      break;
+    }
+    case constants.FOLLOW:
+    {
+      API.follow(action.data);
+      break;
+    }
+    case constants.UNFOLLOW:
+    {
+      API.unfollow(action.data);
       break;
     }
   }

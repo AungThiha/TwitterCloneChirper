@@ -84,7 +84,7 @@ function loginRequired(req, res, next) {
   }
 }
 
-function makeUserSafe(user){
+function makeUserSafe(user) {
   var safeUser = {};
 
   var safeKeys = ['cid', 'fullname', 'email', 'username', 'following'];
@@ -95,6 +95,37 @@ function makeUserSafe(user){
 
   return safeUser;
 }
+
+router.get('/api/users', loginRequired, function (req, res) {
+  res.json(users.toArray().map(function (user) {
+    return makeUserSafe(user);
+  }));
+});
+
+router.post('/api/follow/:id', loginRequired, function (req, res) {
+
+  var id = parseInt(req.params.id);
+
+  if (req.user.following.indexOf(id) < 0 && req.user.cid != id) {
+    req.user.following.push(id);
+    users.update(req.user.cid, req.user);
+  }
+
+  res.json(makeUserSafe(req.user));
+});
+
+router.post('/api/unfollow/:id', loginRequired, function (req, res) {
+
+  var id = parseInt(req.params.id);
+  var pos = req.user.following.indexOf(id);
+
+  if (pos > -1 && req.user.cid != id) {
+    req.user.following.splice(pos, 1);
+    users.update(req.user.cid, req.user);
+  }
+
+  res.json(makeUserSafe(req.user));
+});
 
 exports.routes = router;
 exports.required = loginRequired;

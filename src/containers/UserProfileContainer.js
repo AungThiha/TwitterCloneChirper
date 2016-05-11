@@ -1,14 +1,15 @@
 var React = require('react');
 var chirpStore = require('../stores/chirps');
-var ChirpList = require('../components/ChirpList');
 var userStore = require('../stores/users');
+var UserProfile = require('../components/UserProfile');
 
-var ChirpListContainer = React.createClass({
+var UserProfileContainer = React.createClass({
   getInitialState: function () {
+    var id = parseInt(this.props.params.id);
     return {
+      user: userStore.get(id),
       chirps: chirpStore.all().filter(function (chirp) {
-        return userStore.currentUser.following.indexOf(chirp.userId) > -1
-          || userStore.currentUser.cid === chirp.userId;
+        return chirp.userId == id;
       })
     };
   },
@@ -18,9 +19,10 @@ var ChirpListContainer = React.createClass({
   },
   render: function () {
     return (
-      <ChirpList chirps={this.state.chirps}/>
+      <UserProfile user={this.state.user}
+                   chirps={this.state.chirps}/>
     );
   }
 });
 
-module.exports = ChirpListContainer;
+module.exports = UserProfileContainer;

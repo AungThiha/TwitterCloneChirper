@@ -1,5 +1,4 @@
 var React = require('react');
-var PropTypes = React.PropTypes;
 var actions = require('../actions');
 var ChirpInput = require('../components/ChirpInput');
 
@@ -28,9 +27,5 @@ var ChirpInputContainer = React.createClass({
     );
   }
 });
-
-ChirpInputContainer.propTypes = {
-
-};
 
 module.exports = ChirpInputContainer;

@@ -1,5 +1,6 @@
 var React = require('react');
 var ReactCSSTransitionGroup = require('react-addons-css-transition-group');
+var Navigation = require('./Navigation');
 
 var Main = React.createClass({
   render: function () {
@@ -10,7 +11,7 @@ var Main = React.createClass({
         </div>
         <div className="row">
           <div className="col-md-3 col-md-offset-1">
-            Navigation
+            <Navigation/>
           </div>
           <div className="col-md-8">
             <ReactCSSTransitionGroup
